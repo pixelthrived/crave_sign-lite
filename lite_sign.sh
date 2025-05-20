@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+# -----------------------------
+# ENV VARS (SET THESE YOURSELF IN crave.yaml!)
+# -----------------------------
+: "${BUCKET_NAME:?}"
+: "${KEY_ENCRYPTION_PASSWORD:?}"
+: "${BKEY_ID:?}"
+: "${BAPP_KEY:?}"
+
+# -----------------------------
+# START SCRIPT
+# -----------------------------
+
+# Ensure b2 is installed by setting correct path
+export PATH=$HOME/.local/bin:$PATH
+if ! command -v b2 &> /dev/null; then
+    echo "[!] b2 CLI is not installed. Installing automatically..."
+    sudo apt update && yes | sudo apt install python3-pip && pip install b2 --break-system-packages
+    echo "[*] Done!"
+fi
+
+# authorize with b2
+echo "[*] Authorizing with Backblaze B2..."
+if ! b2 account authorize "$BKEY_ID" "$BAPP_KEY" > /dev/null 2>&1; then
+    echo "[!] B2 login failed."
+    exit 1
+fi
+
+# prepare output path
+mkdir -p vendor/lineage-priv/keys
+
+# temp download location
+TMP_ZIP=$(mktemp "/tmp/android-certs.XXXXXX.zip")
+
+# download file
+echo "[*] Downloading android-certs.zip from bucket $BUCKET_NAME..."
+b2 file download b2://$BUCKET_NAME/android-certs.zip $TMP_ZIP
+echo "[*] Clearing account..."
+b2 account clear
+
+# unzip with password
+echo "[*] Unzipping into vendor/lineage-priv/keys..."
+unzip -o -P "$KEY_ENCRYPTION_PASSWORD" $TMP_ZIP -d "vendor/lineage-priv/keys"
+
+# cleanup
+rm -rf $TMP_ZIP
+
+echo "[+] Done! Your certs are now in vendor/lineage-priv/keys.mk. Please make sure your inline signing works."
