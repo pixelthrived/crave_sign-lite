@@ -13,8 +13,6 @@ set -euo pipefail
 # START SCRIPT
 # -----------------------------
 
-# Ensure b2 is installed by setting correct path
-export PATH=$HOME/.local/bin:$PATH
 if ! command -v b2 &> /dev/null; then
     echo "[!] b2 CLI is not installed. Installing automatically..."
     sudo apt update && yes | sudo apt install python3-pip && pip install b2 --break-system-packages
